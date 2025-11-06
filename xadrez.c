@@ -1,16 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <math.h>
 
 #define TAM 8
 
 char tabuleiro[TAM][TAM];
 
 void inicializarTabuleiro() {
-    // Pretas
     char linha1[] = {'T','C','B','D','R','B','C','T'};
     char linha2[] = {'P','P','P','P','P','P','P','P'};
-    // Brancas
     char linha7[] = {'p','p','p','p','p','p','p','p'};
     char linha8[] = {'t','c','b','d','r','b','c','t'};
 
@@ -49,38 +48,45 @@ int isAdversario(char peca, int turno) {
     return (turno == 0 && isPreto(peca)) || (turno == 1 && isBranco(peca));
 }
 
-int movimentoValidoPeao(int x1, int y1, int x2, int y2, int turno) {
-    int dir = (turno == 0) ? -1 : 1;
-    char destino = tabuleiro[x2][y2];
-
-    // Movimento simples
-    if (y1 == y2 && destino == '.' && x2 == x1 + dir)
-        return 1;
-
-    // Movimento duplo no primeiro turno
-    if (y1 == y2 && destino == '.' && x2 == x1 + 2 * dir &&
-        ((turno == 0 && x1 == 6) || (turno == 1 && x1 == 1)) &&
-        tabuleiro[x1 + dir][y1] == '.')
-        return 1;
-
-    // Captura
-    if (abs(y2 - y1) == 1 && x2 == x1 + dir && isAdversario(destino, turno))
-        return 1;
-
-    return 0;
+int caminhoLivre(int x1, int y1, int x2, int y2) {
+    int dx = (x2 > x1) - (x2 < x1);
+    int dy = (y2 > y1) - (y2 < y1);
+    int i = x1 + dx, j = y1 + dy;
+    while (i != x2 || j != y2) {
+        if (tabuleiro[i][j] != '.') return 0;
+        i += dx;
+        j += dy;
+    }
+    return 1;
 }
 
 int movimentoValido(int x1, int y1, int x2, int y2, int turno) {
     char peca = tabuleiro[x1][y1];
+    char destino = tabuleiro[x2][y2];
     if (peca == '.') return 0;
     if ((turno == 0 && !isBranco(peca)) || (turno == 1 && !isPreto(peca))) return 0;
-    if ((turno == 0 && isBranco(tabuleiro[x2][y2])) || (turno == 1 && isPreto(tabuleiro[x2][y2]))) return 0;
+    if ((turno == 0 && isBranco(destino)) || (turno == 1 && isPreto(destino))) return 0;
 
-    if (tolower(peca) == 'p')
-        return movimentoValidoPeao(x1, y1, x2, y2, turno);
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int adx = abs(dx), ady = abs(dy);
 
-    // Para outras peças, permitir movimento livre (sem validação real)
-    return 1;
+    switch (tolower(peca)) {
+        case 'p': {
+            int dir = (turno == 0) ? -1 : 1;
+            if (dy == 0 && dx == dir && destino == '.') return 1;
+            if (dy == 0 && dx == 2 * dir && ((turno == 0 && x1 == 6) || (turno == 1 && x1 == 1)) &&
+                tabuleiro[x1 + dir][y1] == '.' && destino == '.') return 1;
+            if (adx == 1 && ady == 1 && isAdversario(destino, turno)) return 1;
+            return 0;
+        }
+        case 't': return (dx == 0 || dy == 0) && caminhoLivre(x1, y1, x2, y2);
+        case 'b': return (adx == ady) && caminhoLivre(x1, y1, x2, y2);
+        case 'd': return ((dx == 0 || dy == 0) || (adx == ady)) && caminhoLivre(x1, y1, x2, y2);
+        case 'c': return (adx == 2 && ady == 1) || (adx == 1 && ady == 2);
+        case 'r': return adx <= 1 && ady <= 1;
+        default: return 0;
+    }
 }
 
 int main() {
